@@ -22,6 +22,10 @@ class Perceptron:
         self.learning_rate = learning_rate
         self.weights = None
         self.initialized = False
+        self.testing_data = None
+        self.testing_data_label = None
+        self.accuracy_list = list()
+        self.error_list = list()
 
     def get_learning_rate(self):
         return self.learning_rate
@@ -34,6 +38,12 @@ class Perceptron:
 
     def set_weights(self, new_weights):
         self.weights = new_weights
+
+    def get_accuracy_list(self):
+        return self.accuracy_list
+
+    def get_error_list(self):
+        return self.error_list
 
     def initialize_weights(self, num_attributes):
         """
@@ -87,6 +97,7 @@ class Perceptron:
         weights = self.get_weights()
 
         # xi is always 1 for weight w0, so add a column of ones to the beginning of the feature array
+        old_x = x
         x = self.add_ones_column(x)
 
         iteration_number = 0
@@ -94,6 +105,7 @@ class Perceptron:
         while flag == 0 and iteration_number < iterations:
             updated_weights = False
             for i in range(x.shape[0]):
+
                 feature = x[i, :]
                 hypothesis = np.matmul(feature, weights)
 
@@ -114,6 +126,16 @@ class Perceptron:
                 flag = 1
 
             iteration_number += 1
+
+            # add current error to list if testing data supplied
+            self.add_to_accuracy_list(old_x, y)
+
+    def add_to_accuracy_list(self, x, y):
+        predict = self.predict(x)
+        accuracy = self.get_accuracy(predict, y)
+        error = 1 - accuracy
+        self.accuracy_list.append(accuracy)
+        self.error_list.append(error)
 
     def predict(self, x):
         """
