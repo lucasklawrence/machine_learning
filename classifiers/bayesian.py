@@ -76,7 +76,7 @@ class Bayesian:
         :param classes: vector of classes
         :param class_probabilities: matrix of probabilities of each class
         :param cond_probabilities: list of conditional probabilities of each attribute value given the class
-        :return:
+        :return: results: np array of predicted class per example
         """
         prediction = []
         # for every example presented
@@ -100,6 +100,7 @@ class Bayesian:
 
         results = np.array(prediction).reshape(len(prediction), 1)
         return results
+
 
 class ConditionalProb:
     def __init__(self, attribute_number, attribute_value, class_value):
