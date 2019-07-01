@@ -1,10 +1,28 @@
 import numpy as np
+import pandas as pd
 
 class kNN:
-    def __init__(self, k=1, distance_measure = 'euclidian', training_data=None):
+    """
+        Algorithm from Introduction to Machine Learning (2nd edition) by Miroslav Kubat
+
+        Simplest version of kNN classifier
+
+        Suppose we have a mechanism to evaluate the similarity between attribute vectors.
+        Let x denote the object whose class we want to determine.
+
+        1. Among the training examples, identify the k nearest neighbors of x (examples that are the most similar to x)
+        2. Let ci be the class most frequently found amongst these k nearest neighbors
+        3. Label x with ci
+
+        Similarity - different distance measures
+    """
+    def __init__(self, k=1, distance_measure='euclidian', training_data=None, training_data_labels=None):
         self.k = k
         self.distance_measure = distance_measure
         self.training_data = training_data
+        self.training_data_labels = training_data_labels
+        self.training_data_accuracy = None
+        self.set_training_accuracy()
 
     def get_k(self):
         return self.k
@@ -18,36 +36,108 @@ class kNN:
     def set_distance_measure(self, distance_measure):
         self.distance_measure = distance_measure
 
-    def get_closest_k_indices(self, x, y):
-        x = np.array(x)
-        k = self.get_k()
+    def get_training_data(self):
+        return self.training_data
 
-        rows = x.shape[0]
-        attr = x.shape[1]
+    def set_training_data(self, x):
+        self.training_data = x
 
-        for i in len(rows):
-            distance = list()
-            index = list()
-            for num in range(k):
-                distance.append(sys.maxsize)
-                index.append(-1)
+    def get_training_data_labels(self):
+        return self.training_data_labels
 
-            for j in len(rows):
-                if i == j:
+    def set_training_data_labels(self, y):
+        self.training_data_labels = y
+
+    def get_training_accuracy(self):
+        return self.training_data_accuracy
+
+    def set_training_accuracy(self):
+        if self.training_data is None:
+            self.training_data_accuracy = None
+        else:
+            ##########
+            kNN_prediction = get_class_vector(self.k, self.training_data, self.training_data_labels)
+            self.training_data_accuracy = get_accuracy(kNN_prediction, self.training_data_labels)
+
+
+
+def get_accuracy( predicted, actual):
+    """
+    :param predicted: prediction array
+    :param actual: true class values
+    :return: percentage of correct results
+    """
+    results = np.equal(predicted, actual)
+
+    return np.count_nonzero(results)/len(results)
+
+
+def get_class_vector(k, x, y):
+    """
+    :param k: number of nearest neighbors to look at
+    :param x: data to be classified
+    :param y: data labels
+
+    :return: class vector with voted label
+    """
+    x = np.array(x)
+    y = np.array(y)
+    result = np.zeros(y.shape)
+
+    if k <= 0:
+        raise ValueError("k needs to be larger than 0")
+
+    rows = x.shape[0]
+    attr = x.shape[1]
+
+    for i in range(rows):
+        distance = [None] * k
+        index = [None] * k
+
+        for j in range(rows):
+            if i == j:
+                continue
+            dist = 0
+            for z in range(attr):
+                dist = dist + (x[i, z] - x[j, z])**2
+            dist = np.sqrt(dist)
+
+            for z in range(k):
+                if distance[z] is None:
+                    distance[z] = dist
+                    index[z] = z
                     continue
-                dist = 0
-                for z in range(len(attr)):
-                    dist = dist + (x[i, z] - x[j, z])**2
-                dist = np.sqrt(dist)
+                if dist < distance[z]:
 
-                for z in range(len(distance)):
-                    if dist < distance[z]:
-                        for y in range(z+1, len(distance)):
-                            dist[z] = dist[y]
+                    # Shift all elements one to the right to the right of and including index z
+                    shift_iteration = 0
+                    for a in range(z+1, k):
+                        distance[a] = distance[z + shift_iteration]
+                        index[a] = index[z + shift_iteration]
+                        shift_iteration = shift_iteration + 1
+                    distance[z] = dist
+                    index[z] = z
 
+        # create dictionary that holds the unique labels in the k nearest indicies
+        labels = {}
+        for z in range(k):
+            label = np.ndarray.item(y[index[z]])
+            if label not in labels:
+                labels[label] = 1
+            else:
+                labels[label] = labels[label] + 1
 
+        # determine which label occurs the most
+        max_count = 0
+        max_label = None
+        for key in labels:
+            if labels[key] > max_count:
+                max_count = labels[key]
+                max_label = key
 
+        result[i] = max_label
 
+    return result
 
 """
 Algorithm from Algorithm from Introduction to Machine Learning (2nd edition) by Miroslav Kubat
@@ -83,9 +173,6 @@ def remove_tomek_links(x,y):
 
     np.delete(x, tomek_link_indices)
     np.delete(y, tomek_link_indices)
-
-
-
 
 def get_closest_indices(x):
     num_examples = x.shape[0]
