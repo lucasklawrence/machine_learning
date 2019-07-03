@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import sys
 
 class kNN:
     """
@@ -23,6 +24,11 @@ class kNN:
         self.training_data_labels = training_data_labels
         self.training_data_accuracy = None
         self.set_training_accuracy()
+        self.training_data_removed = None
+        self.training_data_labels_removed = None
+        self.training_data_accuracy_removed = None
+        self.num_examples_removed = 0
+
 
     def get_k(self):
         return self.k
@@ -51,6 +57,23 @@ class kNN:
     def get_training_accuracy(self):
         return self.training_data_accuracy
 
+    def remove_tl(self):
+        self.training_data_removed, self.training_data_labels_removed = remove_tomek_links(self.training_data, self.training_data_labels)
+        self.num_examples_removed = self.training_data.shape[0] - self.training_data_removed.shape[0]
+        self.training_data_accuracy_removed = get_accuracy(get_class_vector(self.k, self.training_data_removed, self.training_data_labels_removed), self.training_data_labels_removed)
+
+    def get_num_examples_removed(self):
+        return self.num_examples_removed
+
+    def get_training_data_removed(self):
+        return self.training_data_removed
+
+    def get_training_data_labels_removed(self):
+        return self.training_data_labels_removed
+
+    def get_training_accuracy_removed(self):
+        return self.training_data_accuracy_removed
+
     def set_training_accuracy(self):
         if self.training_data is None:
             self.training_data_accuracy = None
@@ -58,8 +81,6 @@ class kNN:
             ##########
             kNN_prediction = get_class_vector(self.k, self.training_data, self.training_data_labels)
             self.training_data_accuracy = get_accuracy(kNN_prediction, self.training_data_labels)
-
-
 
 def get_accuracy( predicted, actual):
     """
@@ -121,7 +142,12 @@ def get_class_vector(k, x, y):
         # create dictionary that holds the unique labels in the k nearest indicies
         labels = {}
         for z in range(k):
-            label = np.ndarray.item(y[index[z]])
+            label = y[index[z]]
+            if label.dtype == 'float64':
+                label = np.asscalar(label)
+            else:
+                label = np.ndarray.item(label)
+
             if label not in labels:
                 labels[label] = 1
             else:
@@ -154,25 +180,50 @@ Input: training set of N examples
 5. Let i = i + 1, if i <= N goto 2
 6. Remove from training set all examples that are now in T
 """
-def remove_tomek_links(x,y):
+
+
+def remove_tomek_links(x, y):
     x = np.array(x)
     y = np.array(y)
 
-    x = np.array(x)
+    nearest_neighbor = np.zeros(y.shape)
+    rows = x.shape[0]
+    attr = x.shape[1]
+    for i in range(rows):
+        closest_index = -1
+        closest_distance = sys.maxsize
+        for j in range(rows):
+            if i == j:
+                continue
+            dist = 0
+            for z in range(attr):
+                dist = dist + (x[i, z] - x[j, z]) ** 2
+            dist = np.sqrt(dist)
 
-    closest_indices = get_closest_index(x)
+            if dist < closest_distance:
+                closest_distance = dist
+                closest_index = j
+        nearest_neighbor[i] = closest_index
 
-    tomek_link_indices = set()
-    num_examples = x.shape[0]
-    for i in range(num_examples):
-        # closest_indices[i] == closest_indices[closest_indices[i]] -> x is nearest neighbor of y and vice versa
-        # y[i] != y[closest_indices[i]] classes are not same
-       if i not in tomek_link_indices and closest_indices[i] == closest_indices[closest_indices[i]] and y[i] != y[closest_indices[i]]:
-            tomek_link_indices.add(closest_indices[i])
-            tomek_link_indices.add(closest_indices[closest_indices[i]])
+    tomek_link_indices = list()
+    for i in range(rows):
+        if i in tomek_link_indices:
+            continue
 
-    np.delete(x, tomek_link_indices)
-    np.delete(y, tomek_link_indices)
+        closest_i = np.ndarray.item(nearest_neighbor[i])
+        closest_j = nearest_neighbor[int(closest_i)]
+
+        if closest_j == i:
+            if i not in tomek_link_indices:
+                tomek_link_indices.append(i)
+            if closest_i not in tomek_link_indices:
+                tomek_link_indices.append(closest_i)
+
+    new_x = np.delete(x, tomek_link_indices, 0)
+    new_y = np.delete(y, tomek_link_indices).astype(float)
+
+    return new_x, new_y
+
 
 def get_closest_indices(x):
     num_examples = x.shape[0]
@@ -202,6 +253,7 @@ def get_closest_indices(x):
             closest_indices[i] = smallest_index
 
     return closest_indices
+
 
 
 
